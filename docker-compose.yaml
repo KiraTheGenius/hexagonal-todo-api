@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: todoservice
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 20s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    volumes:
+      - localstack_data:/tmp/localstack
+
+ app:
+   build: .
+   ports:
+     - "8080:8080"
+   depends_on:
+     mysql:
+       condition: service_healthy
+     redis:
+       condition: service_healthy
+     localstack:
+       condition: service_started
+   environment:
+     - PORT=8080
+     - DATABASE_URL=root:password@tcp(mysql:3306)/todoservice?parseTime=true
+     - REDIS_URL=redis:6379
+     - AWS_REGION=us-east-1
+     - S3_BUCKET=todo-files
+     - AWS_ACCESS_KEY_ID=test
+     - AWS_SECRET_ACCESS_KEY=test
+     - S3_ENDPOINT=http://localstack:4566
+
+volumes:
+  mysql_data:
+  localstack_data:

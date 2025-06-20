@@ -11,8 +11,6 @@ A production-ready Go-based todo service built with Clean Architecture principle
 - **Database**: MySQL with automated migrations
 - **Testing**: Comprehensive unit tests and benchmarks
 - **Docker**: Full containerization with Docker Compose
-- **Structured Logging**: Production-ready logging with request tracing
-- **Error Handling**: Custom error types and proper error responses
 - **API Documentation**: Comprehensive API documentation
 - **Middleware**: CORS, request logging, timeout handling
 - **Configuration**: Environment-based configuration with validation

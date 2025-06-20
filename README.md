@@ -120,7 +120,6 @@ todo-service/
 │       ├── storage/     # Storage adapters (S3)
 │       └── streaming/   # Streaming adapters (Redis)
 ├── pkg/config/          # Configuration management
-├── internal/domain/errors/ # Custom error types
 ├── tests/               # Test files
 ├── docs/                # Documentation
 ├── docker-compose.yml   # Docker services definition

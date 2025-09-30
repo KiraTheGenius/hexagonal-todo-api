@@ -10,12 +10,14 @@ import (
 	"syscall"
 	"time"
 
-	"taskflow/internal/adapter/database"
-	"taskflow/internal/adapter/storage"
-	"taskflow/internal/adapter/streaming"
-	router "taskflow/internal/interfaces/http"
-	"taskflow/internal/interfaces/http/handlers"
-	"taskflow/internal/service"
+	"taskflow/adapter/cache"
+	router "taskflow/adapter/http"
+	"taskflow/adapter/http/handlers"
+	"taskflow/adapter/repository"
+	"taskflow/adapter/storage"
+	"taskflow/adapter/streaming"
+	"taskflow/internal/domain/file"
+	"taskflow/internal/domain/todo"
 	"taskflow/pkg/config"
 
 	"github.com/gin-gonic/gin"
@@ -24,28 +26,30 @@ import (
 func main() {
 	cfg := config.Load()
 
-	db, err := database.NewGormConnection(cfg.DatabaseURL)
+	db, err := repository.NewGormConnection(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	if err := database.RunGormMigrations(db); err != nil {
+	if err := repository.RunGormMigrations(db); err != nil {
 		log.Fatal("Failed to run migrations:", err)
 	}
 
-	todoRepo := database.NewTodoRepository(db)
+	todoRepo := repository.NewTodoRepository(db)
 
 	s3Client := storage.NewS3Client(cfg.S3Config)
-	fileRepo := storage.NewFileRepository(s3Client, cfg.S3Config.Bucket)
+	fileStorage := storage.NewS3Storage(s3Client, cfg.S3Config.Bucket)
+	fileRepo := repository.NewFileRepository(db) // Assuming we have a file repository
 
 	redisClient := streaming.NewRedisClient(cfg.RedisURL)
-	streamRepo := streaming.NewStreamRepository(redisClient)
+	messaging := streaming.NewRedisMessaging(redisClient)
+	cache := cache.NewRedisCache(redisClient)
 
-	todoSr := service.NewTodoService(todoRepo, streamRepo)
-	fileSr := service.NewFileService(fileRepo)
+	todoService := todo.NewTodoService(todoRepo, messaging, cache)
+	fileService := file.NewFileService(fileRepo, fileStorage)
 
-	todoHandler := handlers.NewTodoHandler(todoSr)
-	fileHandler := handlers.NewFileHandler(fileSr)
+	todoHandler := handlers.NewTodoHandler(todoService)
+	fileHandler := handlers.NewFileHandler(fileService)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := router.SetupRouter(todoHandler, fileHandler)

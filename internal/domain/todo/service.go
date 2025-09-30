@@ -1,39 +1,31 @@
-package service
+package todo
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
-	"taskflow/internal/domain/entities"
-	"taskflow/internal/domain/repositories"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-type TodoService interface {
-	CreateTodo(ctx context.Context, req *entities.CreateTodoRequest) (*entities.TodoItem, error)
-	GetTodo(ctx context.Context, id uuid.UUID) (*entities.TodoItem, error)
-	ListTodos(ctx context.Context, limit, offset int) ([]*entities.TodoItem, error)
-	UpdateTodo(ctx context.Context, id uuid.UUID, req *entities.UpdateTodoRequest) (*entities.TodoItem, error)
-	DeleteTodo(ctx context.Context, id uuid.UUID) error
+type Service struct {
+	todoRepo  Repository
+	messaging Messaging
+	cache     Cache
+	logger    *slog.Logger
 }
 
-type todoService struct {
-	todoRepo   repositories.TodoRepository
-	streamRepo repositories.StreamRepository
-	logger     *slog.Logger
-}
-
-func NewTodoService(todoRepo repositories.TodoRepository, streamRepo repositories.StreamRepository) TodoService {
-	return &todoService{
-		todoRepo:   todoRepo,
-		streamRepo: streamRepo,
-		logger:     slog.Default(),
+func NewTodoService(todoRepo Repository, messaging Messaging, cache Cache) *Service {
+	return &Service{
+		todoRepo:  todoRepo,
+		messaging: messaging,
+		cache:     cache,
+		logger:    slog.Default(),
 	}
 }
 
-func (uc *todoService) CreateTodo(ctx context.Context, req *entities.CreateTodoRequest) (*entities.TodoItem, error) {
+func (uc *Service) CreateTodo(ctx context.Context, req *CreateTodoRequest) (*TodoItem, error) {
 	if req.Description == "" {
 		return nil, fmt.Errorf("description is required")
 	}
@@ -42,7 +34,7 @@ func (uc *todoService) CreateTodo(ctx context.Context, req *entities.CreateTodoR
 		return nil, fmt.Errorf("due date must be in the future")
 	}
 
-	todo := &entities.TodoItem{
+	todo := &TodoItem{
 		ID:          uuid.New(),
 		Description: req.Description,
 		DueDate:     req.DueDate,
@@ -58,19 +50,19 @@ func (uc *todoService) CreateTodo(ctx context.Context, req *entities.CreateTodoR
 
 	uc.logger.Info("todo created successfully", "todo_id", todo.ID, "description", todo.Description)
 
-	// Publish to stream
+	// Publish to messaging system
 	go func() {
-		if err := uc.streamRepo.PublishTodoCreated(context.Background(), todo); err != nil {
-			uc.logger.Error("failed to publish to stream", "error", err, "todo_id", todo.ID)
+		if err := uc.messaging.Publish(context.Background(), "todo.created", todo); err != nil {
+			uc.logger.Error("failed to publish todo created event", "error", err, "todo_id", todo.ID)
 		} else {
-			uc.logger.Info("todo event published to stream", "todo_id", todo.ID)
+			uc.logger.Info("todo created event published", "todo_id", todo.ID)
 		}
 	}()
 
 	return todo, nil
 }
 
-func (uc *todoService) GetTodo(ctx context.Context, id uuid.UUID) (*entities.TodoItem, error) {
+func (uc *Service) GetTodo(ctx context.Context, id uuid.UUID) (*TodoItem, error) {
 	todo, err := uc.todoRepo.GetByID(ctx, id)
 	if err != nil {
 		uc.logger.Error("failed to get todo", "error", err, "todo_id", id)
@@ -81,7 +73,7 @@ func (uc *todoService) GetTodo(ctx context.Context, id uuid.UUID) (*entities.Tod
 	return todo, nil
 }
 
-func (uc *todoService) ListTodos(ctx context.Context, limit, offset int) ([]*entities.TodoItem, error) {
+func (uc *Service) ListTodos(ctx context.Context, limit, offset int) ([]*TodoItem, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 10
 	}
@@ -99,7 +91,7 @@ func (uc *todoService) ListTodos(ctx context.Context, limit, offset int) ([]*ent
 	return todos, nil
 }
 
-func (uc *todoService) UpdateTodo(ctx context.Context, id uuid.UUID, req *entities.UpdateTodoRequest) (*entities.TodoItem, error) {
+func (uc *Service) UpdateTodo(ctx context.Context, id uuid.UUID, req *UpdateTodoRequest) (*TodoItem, error) {
 	// Get existing todo
 	existing, err := uc.todoRepo.GetByID(ctx, id)
 	if err != nil {
@@ -127,7 +119,7 @@ func (uc *todoService) UpdateTodo(ctx context.Context, id uuid.UUID, req *entiti
 	return existing, nil
 }
 
-func (uc *todoService) DeleteTodo(ctx context.Context, id uuid.UUID) error {
+func (uc *Service) DeleteTodo(ctx context.Context, id uuid.UUID) error {
 	// Check if todo exists
 	if _, err := uc.todoRepo.GetByID(ctx, id); err != nil {
 		return fmt.Errorf("todo not found: %w", err)

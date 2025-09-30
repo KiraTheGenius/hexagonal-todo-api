@@ -4,25 +4,24 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"taskflow/internal/domain/entities"
-	"taskflow/internal/service"
+	"taskflow/internal/domain/todo"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type TodoHandler struct {
-	todoUseCase service.TodoService
+	todoService *todo.Service
 }
 
-func NewTodoHandler(todoUseCase service.TodoService) *TodoHandler {
+func NewTodoHandler(todoService *todo.Service) *TodoHandler {
 	return &TodoHandler{
-		todoUseCase: todoUseCase,
+		todoService: todoService,
 	}
 }
 
 func (h *TodoHandler) CreateTodo(c *gin.Context) {
-	var req entities.CreateTodoRequest
+	var req todo.CreateTodoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request body",
@@ -31,7 +30,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.todoUseCase.CreateTodo(c.Request.Context(), &req)
+	todoItem, err := h.todoService.CreateTodo(c.Request.Context(), &req)
 	if err != nil {
 		// Check for validation errors
 		if errors.Is(err, errors.New("description is required")) ||
@@ -43,7 +42,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, todo)
+	c.JSON(http.StatusCreated, todoItem)
 }
 
 func (h *TodoHandler) GetTodo(c *gin.Context) {
@@ -54,13 +53,13 @@ func (h *TodoHandler) GetTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.todoUseCase.GetTodo(c.Request.Context(), id)
+	todoItem, err := h.todoService.GetTodo(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, todo)
+	c.JSON(http.StatusOK, todoItem)
 }
 
 func (h *TodoHandler) ListTodos(c *gin.Context) {
@@ -74,7 +73,7 @@ func (h *TodoHandler) ListTodos(c *gin.Context) {
 		offset = 0
 	}
 
-	todos, err := h.todoUseCase.ListTodos(c.Request.Context(), limit, offset)
+	todos, err := h.todoService.ListTodos(c.Request.Context(), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve todos"})
 		return
@@ -98,7 +97,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
-	var req entities.UpdateTodoRequest
+	var req todo.UpdateTodoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request body",
@@ -107,7 +106,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
-	todo, err := h.todoUseCase.UpdateTodo(c.Request.Context(), id, &req)
+	todoItem, err := h.todoService.UpdateTodo(c.Request.Context(), id, &req)
 	if err != nil {
 		if errors.Is(err, errors.New("todo not found")) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
@@ -117,7 +116,7 @@ func (h *TodoHandler) UpdateTodo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, todo)
+	c.JSON(http.StatusOK, todoItem)
 }
 
 func (h *TodoHandler) DeleteTodo(c *gin.Context) {
@@ -128,7 +127,7 @@ func (h *TodoHandler) DeleteTodo(c *gin.Context) {
 		return
 	}
 
-	err = h.todoUseCase.DeleteTodo(c.Request.Context(), id)
+	err = h.todoService.DeleteTodo(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, errors.New("todo not found")) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})

@@ -1,9 +1,8 @@
 package http
 
 import (
-	"time"
-
-	"taskflow/internal/interfaces/http/handlers"
+	"taskflow/adapter/http/handlers"
+	"taskflow/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,11 +11,10 @@ func SetupRouter(todoHandler *handlers.TodoHandler, fileHandler *handlers.FileHa
 	r := gin.New()
 
 	// Add middleware
-	r.Use(Logger())
-	r.Use(CORS())
-	r.Use(RequestID())
-	r.Use(Timeout(30 * time.Second))
-	r.Use(gin.Recovery())
+	r.Use(middleware.RequestLogger(middleware.DefaultRequestLoggerConfig()))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
+	r.Use(middleware.Recovery(middleware.DefaultRecoveryConfig()))
+	r.Use(middleware.Timeout(middleware.DefaultTimeoutConfig()))
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {

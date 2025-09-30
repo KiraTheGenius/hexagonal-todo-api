@@ -1,13 +1,13 @@
-# Todo Service
+# TaskFlow
 
-A production-ready Go-based todo service built with Clean Architecture principles, featuring file uploads to S3, MySQL persistence, Redis streaming, comprehensive error handling, and structured logging.
+A production-ready Go-based todo service built with **Hexagonal Architecture** (Ports & Adapters), featuring file uploads to S3, MySQL persistence, Redis streaming, comprehensive error handling, and structured logging.
 
 ## Features
 
-- **Clean Architecture**: Well-organized layers with proper separation of concerns
+- **Hexagonal Architecture**: Clean separation between domain logic and infrastructure
 - **File Upload**: Upload files to S3 (LocalStack for development) with validation
 - **Todo Management**: Full CRUD operations for todo items
-- **Streaming**: Publish todo events to Redis streams
+- **Event Streaming**: Publish todo events to Redis streams
 - **Database**: MySQL with automated migrations
 - **Testing**: Comprehensive unit tests and benchmarks
 - **Docker**: Full containerization with Docker Compose
@@ -26,7 +26,7 @@ A production-ready Go-based todo service built with Clean Architecture principle
 1. **Clone and run the service:**
    ```bash
    git clone <repository-url>
-   cd todo-service
+   cd taskflow
    make run
    ```
 
@@ -66,8 +66,16 @@ A production-ready Go-based todo service built with Clean Architecture principle
 
 ## API Endpoints
 
+### Health
 - `GET /health` - Health check
+
+### File Management
 - `POST /upload` - Upload a file
+- `GET /file/:id` - Get file metadata
+- `GET /file/:id/download` - Download a file
+- `DELETE /file/:id` - Delete a file
+
+### Todo Management
 - `POST /todo` - Create a new todo item
 - `GET /todo/:id` - Get a todo by ID
 - `GET /todo` - List todos (supports ?limit=10&offset=0)
@@ -75,6 +83,14 @@ A production-ready Go-based todo service built with Clean Architecture principle
 - `DELETE /todo/:id` - Delete a todo item
 
 For detailed API documentation, see [docs/api.md](docs/api.md).
+
+For comprehensive architecture documentation, see [docs/architecture.md](docs/architecture.md).
+
+For development guidelines and setup instructions, see [docs/development.md](docs/development.md).
+
+For a quick reference guide, see [docs/quick-reference.md](docs/quick-reference.md).
+
+For a complete list of changes and version history, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Development Commands
 
@@ -101,23 +117,38 @@ make lint
 ## Project Structure
 
 ```
-todo-service/
+taskflow/
 ├── cmd/server/           # Application entry point
+├── adapter/              # All adapters (infrastructure)
+│   ├── cache/            # Cache adapters (Redis)
+│   ├── http/             # HTTP interface adapters
+│   │   ├── handlers/     # HTTP handlers
+│   │   ├── middleware.go # Middleware functions
+│   │   └── router.go     # Route definitions
+│   ├── repository/       # Database adapters (MySQL)
+│   ├── storage/          # Storage adapters (S3)
+│   └── streaming/        # Event streaming adapters (Redis)
 ├── internal/
-│   ├── domain/          # Business entities and interfaces
-│   │   ├── entities/    # Core business objects
-│   │   └── repositories/ # Repository interfaces
-│   ├── service/         # Business logic and use cases
-│   ├── interfaces/      # HTTP handlers and routing
-│   │   └── http/
-│   │       ├── handlers/ # HTTP handlers
-│   │       ├── middleware.go # Middleware functions
-│   │       └── router.go # Route definitions
-│   └── adapter/         # External service implementations
-│       ├── database/    # Database adapters
-│       ├── storage/     # Storage adapters (S3)
-│       └── streaming/   # Streaming adapters (Redis)
-├── pkg/config/          # Configuration management
+│   └── domain/           # Business logic (hexagon core)
+│       ├── shared/       # Shared domain utilities
+│       │   ├── ports.go  # Shared port interfaces
+│       │   ├── errors.go # Domain errors
+│       │   └── value_objects.go # Value objects
+│       ├── todo/         # Todo domain
+│       │   ├── model.go  # Domain models
+│       │   ├── port.go   # Port interfaces
+│       │   └── service.go # Domain services
+│       └── file/         # File domain
+│           ├── model.go  # Domain models
+│           ├── port.go   # Port interfaces
+│           └── service.go # Domain services
+├── pkg/
+│   ├── config/          # Configuration management
+│   └── middleware/      # Reusable middleware
+│       ├── cors.go      # CORS middleware
+│       ├── logging.go   # Request logging
+│       ├── recovery.go  # Panic recovery
+│       └── timeout.go   # Request timeout
 ├── tests/               # Test files
 ├── docs/                # Documentation
 ├── docker-compose.yml   # Docker services definition
@@ -128,14 +159,98 @@ todo-service/
 
 ## Architecture
 
-This project follows Clean Architecture principles:
+This project follows **Hexagonal Architecture** (Ports & Adapters) principles:
 
-- **Entities**: Core business objects (TodoItem)
-- **Use Cases**: Business logic and orchestration
-- **Interfaces**: HTTP handlers and external service contracts
-- **Infrastructure**: Database, S3, Redis implementations
+### Core Concepts
 
-Dependencies point inward, with the domain layer being completely independent of external frameworks.
+- **Domain Layer** (`internal/domain/`): Contains the business logic and domain models
+  - **Models**: Core business objects (TodoItem, File)
+  - **Ports**: Interfaces that define what the domain needs (Repository, StreamRepository)
+  - **Services**: Business logic and use cases
+
+- **Adapters** (`adapter/`): Infrastructure implementations that adapt external systems
+  - **Repository Adapter**: MySQL database implementation
+  - **Storage Adapter**: S3 file storage implementation
+  - **Streaming Adapter**: Redis event streaming implementation
+
+- **Interface Adapters** (`internal/interfaces/`): External interface implementations
+  - **HTTP Adapter**: REST API handlers and routing
+
+### Key Benefits
+
+- **Dependency Inversion**: Domain depends on abstractions, not concrete implementations
+- **Testability**: Easy to mock dependencies for unit testing
+- **Flexibility**: Easy to swap out implementations (e.g., different databases)
+- **Maintainability**: Clear boundaries between business logic and infrastructure
+- **Independence**: Domain layer is completely independent of external frameworks
+
+### Dependency Flow
+
+```
+HTTP Interface → Domain Services → Port Interfaces
+     ↓                ↓                ↓
+Infrastructure Adapters → External Systems
+```
+
+Dependencies point inward toward the domain layer, ensuring business logic remains pure and testable.
+
+## Hexagonal Architecture Implementation
+
+### Domain Layer Structure
+
+Each domain (`todo`, `file`) follows a consistent pattern:
+
+```
+internal/domain/{domain}/
+├── model.go    # Domain models and DTOs
+├── port.go     # Port interfaces (what the domain needs)
+└── service.go  # Domain services (business logic)
+```
+
+### Port Interfaces
+
+**Todo Domain Ports:**
+- `Repository`: Data persistence operations
+- `StreamRepository`: Event publishing operations
+
+**File Domain Ports:**
+- `Repository`: File storage operations
+
+### Adapter Implementations
+
+**Repository Adapter** (`adapter/repository/mysql.go`):
+- Implements `todo.Repository` interface
+- Handles MySQL database operations
+- Uses GORM for ORM functionality
+
+**Storage Adapter** (`adapter/storage/s3.go`):
+- Implements `file.Repository` interface
+- Handles S3 file operations
+- Supports LocalStack for development
+
+**Streaming Adapter** (`adapter/streaming/redis.go`):
+- Implements `todo.StreamRepository` interface
+- Handles Redis stream publishing
+- Publishes todo events asynchronously
+
+### Interface Adapters
+
+**HTTP Adapter** (`internal/interfaces/http/`):
+- REST API handlers
+- Request/response mapping
+- Error handling and validation
+- Middleware for cross-cutting concerns
+
+### Dependency Injection
+
+The main application (`cmd/server/main.go`) wires everything together:
+
+1. Creates infrastructure adapters
+2. Injects them into domain services
+3. Passes domain services to interface adapters
+4. Starts the HTTP server
+
+This ensures loose coupling and makes testing straightforward.
 
 ## Key Improvements
 

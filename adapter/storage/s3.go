@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 	"path/filepath"
-	"taskflow/internal/domain/repositories"
+	"taskflow/internal/domain/shared"
 	"taskflow/pkg/config"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -25,19 +25,19 @@ func NewS3Client(cfg config.S3Config) *s3.S3 {
 	return s3.New(sess)
 }
 
-type fileRepository struct {
+type s3Storage struct {
 	s3Client *s3.S3
 	bucket   string
 }
 
-func NewFileRepository(s3Client *s3.S3, bucket string) repositories.FileRepository {
-	return &fileRepository{
+func NewS3Storage(s3Client *s3.S3, bucket string) shared.Storage {
+	return &s3Storage{
 		s3Client: s3Client,
 		bucket:   bucket,
 	}
 }
 
-func (r *fileRepository) Upload(ctx context.Context, filename string, content io.Reader, contentType string) (string, error) {
+func (r *s3Storage) Upload(ctx context.Context, filename string, content io.Reader, contentType string) (string, error) {
 	fileID := uuid.New().String() + filepath.Ext(filename)
 
 	_, err := r.s3Client.PutObjectWithContext(ctx, &s3.PutObjectInput{
@@ -54,7 +54,7 @@ func (r *fileRepository) Upload(ctx context.Context, filename string, content io
 	return fileID, nil
 }
 
-func (r *fileRepository) Download(ctx context.Context, fileID string) (io.ReadCloser, error) {
+func (r *s3Storage) Download(ctx context.Context, fileID string) (io.ReadCloser, error) {
 	result, err := r.s3Client.GetObjectWithContext(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(r.bucket),
 		Key:    aws.String(fileID),
@@ -67,11 +67,26 @@ func (r *fileRepository) Download(ctx context.Context, fileID string) (io.ReadCl
 	return result.Body, nil
 }
 
-func (r *fileRepository) Delete(ctx context.Context, fileID string) error {
+func (r *s3Storage) Delete(ctx context.Context, fileID string) error {
 	_, err := r.s3Client.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(r.bucket),
 		Key:    aws.String(fileID),
 	})
 
 	return err
+}
+
+func (r *s3Storage) GetURL(ctx context.Context, fileID string) (string, error) {
+	// Generate a presigned URL for the file
+	req, _ := r.s3Client.GetObjectRequest(&s3.GetObjectInput{
+		Bucket: aws.String(r.bucket),
+		Key:    aws.String(fileID),
+	})
+
+	url, err := req.Presign(15 * 60) // 15 minutes
+	if err != nil {
+		return "", err
+	}
+
+	return url, nil
 }

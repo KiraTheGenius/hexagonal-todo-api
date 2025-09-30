@@ -1,8 +1,8 @@
-# Todo Service API Documentation
+# TaskFlow API Documentation
 
 ## Overview
 
-The Todo Service provides a RESTful API for managing todo items with file upload capabilities, database persistence, and event streaming.
+TaskFlow provides a RESTful API for managing todo items with file upload capabilities, database persistence, and event streaming. Built with Hexagonal Architecture principles for maintainability and testability.
 
 ## Base URL
 
@@ -28,7 +28,7 @@ Check if the service is running.
 }
 ```
 
-### File Upload
+### File Management
 
 #### POST /upload
 
@@ -47,13 +47,59 @@ Upload a file to S3 storage.
 **Response:**
 ```json
 {
-  "fileId": "uuid-of-uploaded-file"
+  "fileId": "uuid-of-uploaded-file",
+  "url": "https://s3.amazonaws.com/bucket/file-id"
 }
 ```
 
 **Error responses:**
 - `400 Bad Request`: Invalid file type or size
 - `500 Internal Server Error`: Upload failed
+
+#### GET /file/:id
+
+Get file metadata by ID.
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "filename": "document.pdf",
+  "contentType": "application/pdf",
+  "size": 1024000,
+  "url": "https://s3.amazonaws.com/bucket/file-id",
+  "createdAt": "2024-01-01T10:00:00Z",
+  "updatedAt": "2024-01-01T10:00:00Z"
+}
+```
+
+**Error responses:**
+- `400 Bad Request`: Invalid UUID format
+- `404 Not Found`: File not found
+
+#### GET /file/:id/download
+
+Download a file by ID.
+
+**Response:**
+- Content-Type: Based on file type
+- Body: File content
+
+**Error responses:**
+- `400 Bad Request`: Invalid UUID format
+- `404 Not Found`: File not found
+- `500 Internal Server Error`: Download failed
+
+#### DELETE /file/:id
+
+Delete a file by ID.
+
+**Response:** `204 No Content`
+
+**Error responses:**
+- `400 Bad Request`: Invalid UUID format
+- `404 Not Found`: File not found
+- `500 Internal Server Error`: Deletion failed
 
 ### Todo Management
 

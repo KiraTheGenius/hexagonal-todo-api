@@ -4,18 +4,18 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
-	"taskflow/internal/service"
+	fileDomain "taskflow/internal/domain/file"
 
 	"github.com/gin-gonic/gin"
 )
 
 type FileHandler struct {
-	fileUseCase service.FileService
+	fileService *fileDomain.Service
 }
 
-func NewFileHandler(fileUseCase service.FileService) *FileHandler {
+func NewFileHandler(fileService *fileDomain.Service) *FileHandler {
 	return &FileHandler{
-		fileUseCase: fileUseCase,
+		fileService: fileService,
 	}
 }
 
@@ -45,16 +45,21 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 		return
 	}
 
-	fileID, err := h.fileUseCase.UploadFile(
+	createReq := &fileDomain.CreateFileRequest{
+		Filename:    header.Filename,
+		ContentType: header.Header.Get("Content-Type"),
+		Size:        header.Size,
+	}
+
+	response, err := h.fileService.UploadFile(
 		c.Request.Context(),
-		header.Filename,
+		createReq,
 		file,
-		header.Header.Get("Content-Type"),
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"fileId": fileID})
+	c.JSON(http.StatusOK, response)
 }

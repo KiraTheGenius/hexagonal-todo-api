@@ -1,24 +1,13 @@
-# TaskFlow API Documentation
-
-## Overview
-
-TaskFlow provides a RESTful API for managing todo items with file upload capabilities, database persistence, and event streaming. Built with Hexagonal Architecture principles for maintainability and testability.
+# API Documentation
 
 ## Base URL
+```
+http://localhost:8080
+```
 
-- Development: `http://localhost:8080`
-- Production: `https://api.yourdomain.com`
+## Health Check
 
-## Authentication
-
-Currently, the API does not require authentication.
-
-## Endpoints
-
-### Health Check
-
-#### GET /health
-
+### GET /health
 Check if the service is running.
 
 **Response:**
@@ -28,271 +17,267 @@ Check if the service is running.
 }
 ```
 
-### File Management
+## Todo Management
 
-#### POST /upload
+### Create Todo
+**POST** `/todo`
 
-Upload a file to S3 storage.
-
-**Request:**
-- Content-Type: `multipart/form-data`
-- Body: Form data with `file` field
-
-**Supported file types:**
-- Images: `.jpg`, `.jpeg`, `.png`, `.gif`
-- Documents: `.txt`, `.pdf`, `.doc`, `.docx`
-
-**File size limit:** 10MB
-
-**Response:**
+**Request Body:**
 ```json
 {
-  "fileId": "uuid-of-uploaded-file",
-  "url": "https://s3.amazonaws.com/bucket/file-id"
+  "description": "Learn hexagonal architecture",
+  "dueDate": "2024-12-31T23:59:59Z",
+  "fileId": "optional-file-uuid"
 }
 ```
 
-**Error responses:**
-- `400 Bad Request`: Invalid file type or size
-- `500 Internal Server Error`: Upload failed
-
-#### GET /file/:id
-
-Get file metadata by ID.
-
 **Response:**
 ```json
 {
-  "id": "uuid",
-  "filename": "document.pdf",
-  "contentType": "application/pdf",
-  "size": 1024000,
-  "url": "https://s3.amazonaws.com/bucket/file-id",
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "description": "Learn hexagonal architecture",
+  "dueDate": "2024-12-31T23:59:59Z",
+  "fileId": "optional-file-uuid",
   "createdAt": "2024-01-01T10:00:00Z",
   "updatedAt": "2024-01-01T10:00:00Z"
 }
 ```
 
-**Error responses:**
-- `400 Bad Request`: Invalid UUID format
-- `404 Not Found`: File not found
-
-#### GET /file/:id/download
-
-Download a file by ID.
+### Get Todo
+**GET** `/todo/{id}`
 
 **Response:**
-- Content-Type: Based on file type
-- Body: File content
-
-**Error responses:**
-- `400 Bad Request`: Invalid UUID format
-- `404 Not Found`: File not found
-- `500 Internal Server Error`: Download failed
-
-#### DELETE /file/:id
-
-Delete a file by ID.
-
-**Response:** `204 No Content`
-
-**Error responses:**
-- `400 Bad Request`: Invalid UUID format
-- `404 Not Found`: File not found
-- `500 Internal Server Error`: Deletion failed
-
-### Todo Management
-
-#### POST /todo
-
-Create a new todo item.
-
-**Request:**
 ```json
 {
-  "description": "Complete the assignment",
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "description": "Learn hexagonal architecture",
   "dueDate": "2024-12-31T23:59:59Z",
-  "fileId": "optional-file-id-from-upload"
-}
-```
-
-**Response:** `201 Created`
-```json
-{
-  "id": "uuid",
-  "description": "Complete the assignment",
-  "dueDate": "2024-12-31T23:59:59Z",
-  "fileId": "optional-file-id",
+  "fileId": "optional-file-uuid",
   "createdAt": "2024-01-01T10:00:00Z",
   "updatedAt": "2024-01-01T10:00:00Z"
 }
 ```
 
-**Error responses:**
-- `400 Bad Request`: Invalid input (missing description, past due date)
-- `500 Internal Server Error`: Creation failed
+### List Todos
+**GET** `/todo?limit=10&offset=0`
 
-#### GET /todo/:id
+**Query Parameters:**
+- `limit` (optional): Number of todos to return (default: 10)
+- `offset` (optional): Number of todos to skip (default: 0)
 
-Get a specific todo item by ID.
-
-**Response:** `200 OK`
-```json
-{
-  "id": "uuid",
-  "description": "Complete the assignment",
-  "dueDate": "2024-12-31T23:59:59Z",
-  "fileId": "optional-file-id",
-  "createdAt": "2024-01-01T10:00:00Z",
-  "updatedAt": "2024-01-01T10:00:00Z"
-}
-```
-
-**Error responses:**
-- `400 Bad Request`: Invalid UUID format
-- `404 Not Found`: Todo not found
-
-#### GET /todo
-
-List todos with pagination.
-
-**Query parameters:**
-- `limit` (optional): Number of items per page (default: 10, max: 100)
-- `offset` (optional): Number of items to skip (default: 0)
-
-**Example:** `GET /todo?limit=5&offset=10`
-
-**Response:** `200 OK`
+**Response:**
 ```json
 {
   "todos": [
     {
-      "id": "uuid",
-      "description": "Complete the assignment",
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "description": "Learn hexagonal architecture",
       "dueDate": "2024-12-31T23:59:59Z",
-      "fileId": "optional-file-id",
+      "fileId": "optional-file-uuid",
       "createdAt": "2024-01-01T10:00:00Z",
       "updatedAt": "2024-01-01T10:00:00Z"
     }
   ],
   "pagination": {
-    "limit": 5,
-    "offset": 10,
+    "limit": 10,
+    "offset": 0,
     "count": 1
   }
 }
 ```
 
-#### PUT /todo/:id
+### Update Todo
+**PUT** `/todo/{id}`
 
-Update an existing todo item.
-
-**Request:**
+**Request Body:**
 ```json
 {
   "description": "Updated description",
   "dueDate": "2024-12-31T23:59:59Z",
-  "fileId": "new-file-id"
+  "fileId": "optional-file-uuid"
 }
 ```
 
-All fields are optional. Only provided fields will be updated.
-
-**Response:** `200 OK`
+**Response:**
 ```json
 {
-  "id": "uuid",
+  "id": "123e4567-e89b-12d3-a456-426614174000",
   "description": "Updated description",
   "dueDate": "2024-12-31T23:59:59Z",
-  "fileId": "new-file-id",
+  "fileId": "optional-file-uuid",
   "createdAt": "2024-01-01T10:00:00Z",
   "updatedAt": "2024-01-01T11:00:00Z"
 }
 ```
 
-**Error responses:**
-- `400 Bad Request`: Invalid UUID format or request body
-- `404 Not Found`: Todo not found
-- `500 Internal Server Error`: Update failed
+### Delete Todo
+**DELETE** `/todo/{id}`
 
-#### DELETE /todo/:id
+**Response:**
+```
+204 No Content
+```
 
-Delete a todo item.
+## File Management
 
-**Response:** `204 No Content`
+### Upload File
+**POST** `/upload`
 
-**Error responses:**
-- `400 Bad Request`: Invalid UUID format
-- `404 Not Found`: Todo not found
-- `500 Internal Server Error`: Deletion failed
+**Request:** `multipart/form-data`
+- `file`: The file to upload
 
-## Error Handling
+**Supported File Types:**
+- Images: `.jpg`, `.jpeg`, `.png`, `.gif`
+- Documents: `.txt`, `.pdf`, `.doc`, `.docx`
 
-All endpoints return consistent error responses:
+**File Size Limit:** 10MB
+
+**Response:**
+```json
+{
+  "fileId": "123e4567-e89b-12d3-a456-426614174000",
+  "url": "https://s3.amazonaws.com/bucket/file-key"
+}
+```
+
+### Get File Metadata
+**GET** `/file/{id}`
+
+**Response:**
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "filename": "document.pdf",
+  "contentType": "application/pdf",
+  "size": 1024000,
+  "url": "https://s3.amazonaws.com/bucket/file-key",
+  "createdAt": "2024-01-01T10:00:00Z",
+  "updatedAt": "2024-01-01T10:00:00Z"
+}
+```
+
+### Download File
+**GET** `/file/{id}/download`
+
+**Response:**
+- Content-Type: Based on file type
+- Content-Disposition: `attachment; filename="original-filename"`
+- Body: File content
+
+### List Files
+**GET** `/files?limit=10&offset=0`
+
+**Query Parameters:**
+- `limit` (optional): Number of files to return (default: 10)
+- `offset` (optional): Number of files to skip (default: 0)
+
+**Response:**
+```json
+{
+  "files": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "filename": "document.pdf",
+      "contentType": "application/pdf",
+      "size": 1024000,
+      "url": "https://s3.amazonaws.com/bucket/file-key",
+      "createdAt": "2024-01-01T10:00:00Z",
+      "updatedAt": "2024-01-01T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "limit": 10,
+    "offset": 0,
+    "count": 1
+  }
+}
+```
+
+### Update File Metadata
+**PUT** `/file/{id}`
+
+**Request Body:**
+```json
+{
+  "filename": "new-filename.pdf",
+  "contentType": "application/pdf"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "filename": "new-filename.pdf",
+  "contentType": "application/pdf",
+  "size": 1024000,
+  "url": "https://s3.amazonaws.com/bucket/file-key",
+  "createdAt": "2024-01-01T10:00:00Z",
+  "updatedAt": "2024-01-01T11:00:00Z"
+}
+```
+
+### Delete File
+**DELETE** `/file/{id}`
+
+**Response:**
+```
+204 No Content
+```
+
+## Error Responses
+
+All endpoints return errors in the following format:
 
 ```json
 {
-  "error": "Human readable error message",
+  "error": "Error message",
   "details": "Additional error details (optional)"
 }
 ```
 
-## Rate Limiting
+### Common HTTP Status Codes
 
-Currently, no rate limiting is implemented. Consider adding rate limiting for production use.
+- `200 OK` - Success
+- `201 Created` - Resource created successfully
+- `204 No Content` - Success with no response body
+- `400 Bad Request` - Invalid request data
+- `404 Not Found` - Resource not found
+- `500 Internal Server Error` - Server error
 
-## CORS
+## Example Usage
 
-The API supports CORS with the following configuration:
-- All origins allowed (`*`)
-- Methods: GET, POST, PUT, DELETE, OPTIONS
-- Headers: Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization
+### Using curl
 
-## Request/Response Headers
-
-### Request Headers
-- `Content-Type`: application/json (for JSON endpoints)
-- `X-Request-ID`: Optional request ID for tracing
-
-### Response Headers
-- `X-Request-ID`: Request ID for tracing
-- `Content-Type`: application/json
-
-## Examples
-
-### Complete workflow example:
-
-1. **Upload a file:**
 ```bash
-curl -X POST -F "file=@document.pdf" http://localhost:8080/upload
-```
-
-2. **Create a todo with the file:**
-```bash
+# Create a todo
 curl -X POST http://localhost:8080/todo \
   -H "Content-Type: application/json" \
-  -d '{
-    "description": "Review uploaded document",
-    "dueDate": "2024-12-31T23:59:59Z",
-    "fileId": "file-id-from-step-1"
-  }'
+  -d '{"description": "Learn Go", "dueDate": "2024-12-31T23:59:59Z"}'
+
+# Upload a file
+curl -X POST http://localhost:8080/upload \
+  -F "file=@document.pdf"
+
+# Get all todos
+curl http://localhost:8080/todo
 ```
 
-3. **List todos:**
-```bash
-curl http://localhost:8080/todo?limit=5
-```
+### Using JavaScript
 
-4. **Update a todo:**
-```bash
-curl -X PUT http://localhost:8080/todo/todo-id \
-  -H "Content-Type: application/json" \
-  -d '{
-    "description": "Updated description"
-  }'
-```
+```javascript
+// Create a todo
+const response = await fetch('http://localhost:8080/todo', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    description: 'Learn Go',
+    dueDate: '2024-12-31T23:59:59Z'
+  })
+});
 
-5. **Delete a todo:**
-```bash
-curl -X DELETE http://localhost:8080/todo/todo-id
-``` 
+const todo = await response.json();
+console.log(todo);
+```

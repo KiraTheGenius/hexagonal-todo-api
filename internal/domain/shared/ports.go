@@ -26,18 +26,3 @@ type Messaging interface {
 	Publish(ctx context.Context, topic string, message interface{}) error
 	PublishWithKey(ctx context.Context, topic string, key string, message interface{}) error
 }
-
-// EventStore defines the interface for event storage
-type EventStore interface {
-	Append(ctx context.Context, streamID string, events []Event) error
-	GetEvents(ctx context.Context, streamID string, fromVersion int) ([]Event, error)
-}
-
-// Event represents a domain event
-type Event struct {
-	ID        string      `json:"id"`
-	Type      string      `json:"type"`
-	Data      interface{} `json:"data"`
-	Version   int         `json:"version"`
-	Timestamp int64       `json:"timestamp"`
-}

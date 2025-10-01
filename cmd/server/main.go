@@ -13,7 +13,7 @@ import (
 	"taskflow/adapter/cache"
 	router "taskflow/adapter/http"
 	"taskflow/adapter/http/handlers"
-	"taskflow/adapter/repository"
+	"taskflow/adapter/repository/mysql"
 	"taskflow/adapter/storage"
 	"taskflow/adapter/streaming"
 	"taskflow/internal/domain/file"

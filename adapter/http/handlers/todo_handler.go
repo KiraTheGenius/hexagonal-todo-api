@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"taskflow/internal/domain/shared"
 	"taskflow/internal/domain/todo"
 
 	"github.com/gin-gonic/gin"
@@ -11,10 +12,10 @@ import (
 )
 
 type TodoHandler struct {
-	todoService *todo.Service
+	todoService todo.TodoService
 }
 
-func NewTodoHandler(todoService *todo.Service) *TodoHandler {
+func NewTodoHandler(todoService todo.TodoService) *TodoHandler {
 	return &TodoHandler{
 		todoService: todoService,
 	}
@@ -32,11 +33,17 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 
 	todoItem, err := h.todoService.CreateTodo(c.Request.Context(), &req)
 	if err != nil {
-		// Check for validation errors
-		if errors.Is(err, errors.New("description is required")) ||
-			errors.Is(err, errors.New("due date must be in the future")) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
+		// Check for domain errors
+		var domainErr *shared.DomainError
+		if errors.As(err, &domainErr) {
+			switch domainErr.Code {
+			case shared.ErrCodeValidation:
+				c.JSON(http.StatusBadRequest, gin.H{"error": domainErr.Message})
+				return
+			case shared.ErrCodeNotFound:
+				c.JSON(http.StatusNotFound, gin.H{"error": domainErr.Message})
+				return
+			}
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create todo"})
 		return

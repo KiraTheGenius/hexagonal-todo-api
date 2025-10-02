@@ -45,3 +45,12 @@ const (
 	ErrCodeValidation   = "VALIDATION_FAILED"
 	ErrCodeTimeout      = "TIMEOUT"
 )
+
+// Helper functions for common errors
+func NewValidationError(message string) *DomainError {
+	return NewDomainError(ErrCodeValidation, message, "")
+}
+
+func NewNotFoundError(message string) *DomainError {
+	return NewDomainError(ErrCodeNotFound, message, "")
+}

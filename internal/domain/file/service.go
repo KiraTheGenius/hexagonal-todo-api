@@ -8,19 +8,19 @@ import (
 	"github.com/google/uuid"
 )
 
-type Service struct {
+type fileService struct {
 	fileRepo Repository
 	storage  Storage
 }
 
-func NewFileService(fileRepo Repository, storage Storage) *Service {
-	return &Service{
+func NewFileService(fileRepo Repository, storage Storage) FileService {
+	return &fileService{
 		fileRepo: fileRepo,
 		storage:  storage,
 	}
 }
 
-func (s *Service) UploadFile(ctx context.Context, req *CreateFileRequest, content io.Reader) (*UploadResponse, error) {
+func (s *fileService) UploadFile(ctx context.Context, req *CreateFileRequest, content io.Reader) (*UploadResponse, error) {
 	// Upload to storage
 	storageKey, err := s.storage.Upload(ctx, req.Filename, content, req.ContentType)
 	if err != nil {
@@ -54,11 +54,11 @@ func (s *Service) UploadFile(ctx context.Context, req *CreateFileRequest, conten
 	}, nil
 }
 
-func (s *Service) GetFile(ctx context.Context, fileID string) (*File, error) {
+func (s *fileService) GetFile(ctx context.Context, fileID string) (*File, error) {
 	return s.fileRepo.GetByID(ctx, fileID)
 }
 
-func (s *Service) DownloadFile(ctx context.Context, fileID string) (io.ReadCloser, error) {
+func (s *fileService) DownloadFile(ctx context.Context, fileID string) (io.ReadCloser, error) {
 	// Get file metadata
 	file, err := s.fileRepo.GetByID(ctx, fileID)
 	if err != nil {
@@ -69,7 +69,7 @@ func (s *Service) DownloadFile(ctx context.Context, fileID string) (io.ReadClose
 	return s.storage.Download(ctx, file.StorageKey)
 }
 
-func (s *Service) DeleteFile(ctx context.Context, fileID string) error {
+func (s *fileService) DeleteFile(ctx context.Context, fileID string) error {
 	// Get file metadata
 	file, err := s.fileRepo.GetByID(ctx, fileID)
 	if err != nil {
@@ -85,11 +85,11 @@ func (s *Service) DeleteFile(ctx context.Context, fileID string) error {
 	return s.fileRepo.Delete(ctx, fileID)
 }
 
-func (s *Service) ListFiles(ctx context.Context, limit, offset int) ([]*File, error) {
+func (s *fileService) ListFiles(ctx context.Context, limit, offset int) ([]*File, error) {
 	return s.fileRepo.List(ctx, limit, offset)
 }
 
-func (s *Service) UpdateFile(ctx context.Context, fileID string, req *UpdateFileRequest) (*File, error) {
+func (s *fileService) UpdateFile(ctx context.Context, fileID string, req *UpdateFileRequest) (*File, error) {
 	// Get existing file
 	file, err := s.fileRepo.GetByID(ctx, fileID)
 	if err != nil {

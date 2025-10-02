@@ -37,8 +37,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=test
     volumes:
       - localstack_data:/tmp/localstack
-
- app:
+app:
    build: .
    ports:
      - "8080:8080"
